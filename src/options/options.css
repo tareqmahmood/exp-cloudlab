@@ -1,0 +1,104 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 500px;
+    margin: 40px auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+header {
+    background: #1a73e8;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    opacity: 0.9;
+    font-size: 14px;
+}
+
+main {
+    padding: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #555;
+}
+
+input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e1e5e9;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+input[type="number"]:focus {
+    outline: none;
+    border-color: #1a73e8;
+}
+
+.help-text {
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+    color: #666;
+}
+
+.actions {
+    margin-top: 30px;
+}
+
+.btn-primary {
+    background: #1a73e8;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 100%;
+}
+
+.btn-primary:hover {
+    background: #155ab6;
+}
+
+.status-message {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: 500;
+    text-align: center;
+    min-height: 20px;
+}

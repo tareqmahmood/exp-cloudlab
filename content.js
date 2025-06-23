@@ -1,99 +1,195 @@
-function formatDateForCalendar(date) {
-    const pad = (n) => n.toString().padStart(2, '0');
-    return date.getUTCFullYear()
-        + pad(date.getUTCMonth() + 1)
-        + pad(date.getUTCDate()) + 'T'
-        + pad(date.getUTCHours())
-        + pad(date.getUTCMinutes())
-        + pad(date.getUTCSeconds()) + 'Z';
-}
+/**
+ * Main content script - orchestrates all functionality
+ * This file serves as the entry point and coordinates all modules
+ */
 
-function getExperimentName() {
-    const allTds = document.querySelectorAll("td.border-none");
-    for (let i = 0; i < allTds.length; i++) {
-        if (allTds[i].textContent.trim() === "Name:") {
-            const nameTd = allTds[i + 1]; // The next <td> contains the name
-            if (nameTd) {
-                return nameTd.textContent.trim();
+(function() {
+    'use strict';
+    
+    console.log('exp-cloudlab extension loaded');
+
+    /**
+     * Main application class that coordinates all functionality
+     */
+    class CloudLabExtension {
+        constructor() {
+            this.observer = null;
+            this.isInitialized = false;
+            this.init();
+        }
+
+        /**
+         * Initialize the extension
+         */
+        init() {
+            if (this.isInitialized) return;
+            
+            // Check if we're on the right page
+            if (!this.isCloudLabPage()) {
+                console.log('Not on CloudLab page, extension inactive');
+                return;
+            }
+
+            this.setupObserver();
+            this.isInitialized = true;
+            console.log('CloudLab extension initialized');
+        }
+
+        /**
+         * Check if current page is a CloudLab page
+         * @returns {boolean}
+         */
+        isCloudLabPage() {
+            return window.location.href.includes('www.cloudlab.us');
+        }
+
+        /**
+         * Set up DOM observer to watch for experiment elements
+         */
+        setupObserver() {
+            this.observer = new MutationObserver((mutations) => {
+                this.handleDOMChanges(mutations);
+            });
+
+            // Start observing
+            this.observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            // Also check immediately in case the element is already present
+            this.checkForExperimentElement();
+        }
+
+        /**
+         * Handle DOM changes detected by observer
+         * @param {MutationRecord[]} mutations
+         */
+        handleDOMChanges(mutations) {
+            // Check if any new nodes contain our target element
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList') {
+                    this.checkForExperimentElement();
+                }
             }
         }
+
+        /**
+         * Check for experiment expiration element and process it
+         */
+        checkForExperimentElement() {
+            const dateElement = document.getElementById("quickvm_expires");
+            
+            if (dateElement && !dateElement.hasAttribute('data-reminder-processed')) {
+                // Mark as processed to avoid duplicate processing
+                dateElement.setAttribute('data-reminder-processed', 'true');
+                
+                // Stop observing once we've found and processed the element
+                if (this.observer) {
+                    this.observer.disconnect();
+                }
+
+                this.processExperimentExpiration(dateElement);
+            }
+        }
+
+        /**
+         * Process the experiment expiration element
+         * @param {Element} dateElement - The element containing expiration date
+         */
+        async processExperimentExpiration(dateElement) {
+            try {
+                // Validate we're on the correct page
+                if (!isStatusPage()) {
+                    console.warn("Not on status.php page, skipping calendar link injection.");
+                    return;
+                }
+
+                // Extract and validate the expiration date
+                const dateText = dateElement.textContent.trim();
+                const expiryDate = parseCloudLabDate(dateText);
+                
+                if (!expiryDate) {
+                    console.warn("Invalid expiry date:", dateText);
+                    return;
+                }
+
+                // Get experiment details
+                const expName = getExperimentName();
+                if (!expName) {
+                    console.warn("Could not extract experiment name");
+                    return;
+                }
+
+                // Create reminder
+                await this.createReminder(dateElement, expiryDate, expName);
+                
+            } catch (error) {
+                console.error("Failed to process experiment expiration:", error);
+            }
+        }
+
+        /**
+         * Create and inject reminder button
+         * @param {Element} dateElement - Element to attach button to
+         * @param {Date} expiryDate - Experiment expiration date
+         * @param {string} expName - Experiment name
+         */
+        async createReminder(dateElement, expiryDate, expName) {
+            try {
+                const expLink = window.location.href;
+                const reminderTime = createReminderDate(expiryDate, 1); // 1 hour before
+                
+                // Get user's Google account preference
+                const userIndex = await getUserIndex();
+                
+                // Create calendar link
+                const calendarUrl = createCalendarLink(reminderTime, expName, expLink, userIndex);
+                
+                // Create and inject button
+                const button = createReminderButton(calendarUrl);
+                dateElement.parentElement.appendChild(button);
+                
+                console.log(`Reminder button added for experiment: ${expName}`);
+                
+            } catch (error) {
+                console.error("Failed to create reminder:", error);
+            }
+        }
+
+        /**
+         * Clean up resources
+         */
+        destroy() {
+            if (this.observer) {
+                this.observer.disconnect();
+                this.observer = null;
+            }
+            this.isInitialized = false;
+        }
     }
-    return null;
-}
 
-function createCalendarLink(startDate, expName, expLink, index = null) {
-    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 60 mins
-    const start = formatDateForCalendar(startDate);
-    const end = formatDateForCalendar(endDate);
-    const title = `Exp [${expName}] Ends`;
-    const details = "CloudLab experiment expires in 1 hour\n" + expLink;
-
-    let baseUrl = "https://www.google.com/calendar";
-    if (index !== null) {
-        baseUrl += "/u/" + index;
-    }
-    return baseUrl + `/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}`;
-}
-
-
-function expExpiryInjectLink(dateSpan) {
-    // return if it is not status.php page
-    if (!window.location.href.includes("www.cloudlab.us/status.php")) {
-        console.warn("Not on status.php page, skipping calendar link injection.");
-        return;
-    }
-
-    const dateText = dateSpan.textContent.trim(); // e.g., "Jun 25, 2025 6:07 PM"
-    const expiryDate = new Date(dateText);
-    if (isNaN(expiryDate)) {
-        console.warn("Invalid expiry date:", dateText);
-        return;
-    }
-
-    const expName = getExperimentName();
-    const expLink = window.location.href; // Current page URL
-    const reminderTime = new Date(expiryDate.getTime() - 60 * 60 * 1000); // 1 hour before
-    
-
-    chrome.storage.sync.get(['googleUserIndex'], (result) => {
-        const userIndex = result.googleUserIndex ?? null; // fallback to null
-        const calendarUrl = createCalendarLink(reminderTime, expName, expLink, userIndex);
-        
-        const link = document.createElement("a");
-        link.href = calendarUrl;
-        link.textContent = "Remind Me 📅";
-        link.target = "_blank";
-        
-        link.style.padding = "6px 12px";
-        link.style.backgroundColor = "#1a73e8";
-        link.style.color = "#ffffff";
-        link.style.borderRadius = "4px";
-        link.style.fontSize = "13px";
-        link.style.fontWeight = "500";
-        link.style.border = "none";
-        link.style.textDecoration = "none";
-        link.style.display = "inline-block";
-        link.style.marginLeft = "10px";
-        link.style.cursor = "pointer";
-        link.style.transition = "background-color 0.3s ease";
-        link.addEventListener("mouseenter", () => {
-            link.style.backgroundColor = "#155ab6";
+    // Initialize the extension when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            new CloudLabExtension();
         });
-        link.addEventListener("mouseleave", () => {
-            link.style.backgroundColor = "#1a73e8";
-        });
-
-        dateSpan.parentElement.appendChild(link);
-    });
-}
-
-// Observe for changes to the DOM
-const expirationDateObserver = new MutationObserver(() => {
-    const dateSpan = document.getElementById("quickvm_expires");
-    if (dateSpan) {
-        expirationDateObserver.disconnect(); // Stop observing once found
-        expExpiryInjectLink(dateSpan);
+    } else {
+        // DOM is already ready
+        new CloudLabExtension();
     }
-});
 
-expirationDateObserver.observe(document.body, { childList: true, subtree: true });
+    // Handle page navigation (for SPAs)
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+        const url = location.href;
+        if (url !== lastUrl) {
+            lastUrl = url;
+            // Page changed, reinitialize if needed
+            setTimeout(() => {
+                new CloudLabExtension();
+            }, 100);
+        }
+    }).observe(document, { subtree: true, childList: true });
+
+})();
