@@ -2,6 +2,8 @@
 
 <img src="icons/icon192.png" alt="exp-cloudlab icon" width="100"/>
 
+![warning: vibe coding](https://badgen.net/static/warning/vibe-coding/yellow)
+
 **exp-cloudlab** is a lightweight Chrome extension that enhances the [CloudLab](https://www.cloudlab.us/) experiment status page by adding a "Remind Me 📅" button next to your experiment's expiration date.
 
 When clicked, it creates a **Google Calendar reminder** set **1 hour before the experiment ends**, helping you avoid accidental shutdowns.
