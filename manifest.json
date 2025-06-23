@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "name": "exp-cloudlab",
+    "version": "1.1",
+    "description": "Add calendar reminder to CloudLab experiments",
+    "icons": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "192": "icons/icon192.png"
+    },
+    "options_page": "options.html",
+    "permissions": ["storage"],
+    "action": {
+      "default_icon": {
+        "16": "icons/icon16.png",
+        "32": "icons/icon32.png",
+        "48": "icons/icon32.png",
+        "128": "icons/icon192.png"
+      },
+      "default_title": "exp-cloudlab"
+    },
+    "content_scripts": [
+      {
+        "matches": ["https://www.cloudlab.us/*"],
+        "js": ["content.js"]
+      }
+    ]
+  }
+  
