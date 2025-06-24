@@ -8,6 +8,7 @@
 
 When clicked, it creates a **Google Calendar reminder** set **1 hour before the experiment ends**, helping you avoid accidental shutdowns.
 
+![exp-cloudlab screenshot](./images/screenshot.png)
 
 ## 🚀 Features
 
